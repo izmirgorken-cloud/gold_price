@@ -3,7 +3,7 @@ name: GoldPrice Hourly
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/1 * * * *"
+    - cron: "*/5 * * * *"
 
 jobs:
   send-message:
