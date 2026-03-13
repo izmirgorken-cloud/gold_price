@@ -100,5 +100,5 @@ def main():
     # 7) Telegram'a gönder
     tg_send(msg)
 
-if __name__ == "_main_":
+if __name__ == "__main__":
     main()
