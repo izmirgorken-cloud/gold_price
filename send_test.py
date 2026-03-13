@@ -2,91 +2,103 @@ import os
 import requests
 from datetime import datetime, timedelta
 
-# === Telegram Secrets (GitHub Secrets'tan geliyor) ===
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-# === GenelPara API (Altın) ===
-# GA: Gram, C: Çeyrek, Y: Yarım, T: Tam, XAUUSD: Ons [1](https://github.com/Mehmet020202/Hasalt-napi2026)[2](https://altin.in/)
+# GenelPara API: altın verileri (GA,C,Y,T,XAUUSD) [1](https://github.com/Mehmet020202/Hasalt-napi2026)[2](https://altin.in/)
 GENELPARA_URL = "https://api.genelpara.com/json/?list=altin&sembol=GA,C,Y,T,XAUUSD"
 
-def now_tr_str() -> str:
-    # GitHub runner genelde UTC; TR için +3 saat
+def now_tr() -> str:
+    # GitHub runner çoğu zaman UTC; TR için +3
     return (datetime.utcnow() + timedelta(hours=3)).strftime("%d.%m.%Y %H:%M")
 
 def tg_send(text: str) -> None:
     """
     Telegram Bot API sendMessage ile mesaj gönderir. [3](https://github.com/TelegramBots/Telegram.Bot)
-    Token / ChatID eksikse sadece log basar.
     """
     if not TOKEN or not CHAT_ID:
-        print("ERROR: TELEGRAM_BOT_TOKEN veya TELEGRAM_CHAT_ID eksik (Secrets kontrol).")
-        print("Mesaj:", text)
+        # Secretlar yoksa Telegram'a yazamayız; log'a bas
+        print("ERROR: Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID")
+        print(text)
         return
 
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     r = requests.post(url, json={"chat_id": CHAT_ID, "text": text}, timeout=20)
-
-    # Telegram hata döndürürse logla
+    # Telegram hata verirse loglayalım
     if r.status_code >= 400:
-        print("Telegram HTTP Error:", r.status_code, r.text)
-
+        print("Telegram HTTP", r.status_code, r.text)
     r.raise_for_status()
 
 def pick(data: dict, sym: str):
-    """
-    GenelPara 'data' objesinden sembolün alis/satis değerlerini çeker. [1](https://github.com/Mehmet020202/Hasalt-napi2026)[2](https://altin.in/)
-    """
     item = data.get(sym, {}) if isinstance(data, dict) else {}
     return item.get("alis"), item.get("satis")
 
-def format_pair(title: str, alis, satis, unit: str) -> str:
+def fmt(title: str, alis, satis, unit: str) -> str:
     a = alis if alis else "-"
     s = satis if satis else "-"
     return f"{title}\n  Alış: {a} {unit} | Satış: {s} {unit}"
 
-def main() -> None:
-    ts = now_tr_str()
+def main():
+    ts = now_tr()
 
-    # 1) GenelPara API çağrısı
-    r = requests.get(GENELPARA_URL, timeout=20)
-    r.raise_for_status()
-
-    # 2) JSON parse
-    j = r.json()
-
-    # 3) Beklenen format: j['data'] içinde GA,C,Y,T,XAUUSD var [1](https://github.com/Mehmet020202/Hasalt-napi2026)[2](https://altin.in/)
-    data = j.get("data")
-    if not isinstance(data, dict):
-        # Beklenmedik cevap: Telegram'a bilgi ver
-        keys = list(j.keys()) if isinstance(j, dict) else "unknown"
-        tg_send(f"⚠️ GoldPrice Bot\n🕘 {ts} (TR)\nBeklenen 'data' alanı yok.\nAnahtarlar: {keys}")
+    # 1) API çağrısı
+    try:
+        r = requests.get(GENELPARA_URL, timeout=20)
+    except Exception as e:
+        tg_send(f"⚠️ GoldPrice Bot\n🕘 {ts} (TR)\nGenelPara'ya istek atılamadı: {e}")
         return
 
+    # 2) HTTP status kontrol
+    if r.status_code != 200:
+        preview = (r.text or "")[:300]
+        tg_send(
+            f"⚠️ GoldPrice Bot\n🕘 {ts} (TR)\n"
+            f"GenelPara HTTP {r.status_code}\n"
+            f"İlk 300 karakter:\n{preview}"
+        )
+        return
+
+    # 3) JSON parse kontrol
+    try:
+        j = r.json()
+    except Exception as e:
+        preview = (r.text or "")[:300]
+        tg_send(
+            f"⚠️ GoldPrice Bot\n🕘 {ts} (TR)\n"
+            f"JSON parse hatası: {e}\n"
+            f"İlk 300 karakter:\n{preview}"
+        )
+        return
+
+    # 4) Beklenen format: j['data'] içinde semboller bulunur [1](https://github.com/Mehmet020202/Hasalt-napi2026)[2](https://altin.in/)
+    data = j.get("data")
+    if not isinstance(data, dict):
+        tg_send(
+            f"⚠️ GoldPrice Bot\n🕘 {ts} (TR)\n"
+            f"Beklenen 'data' alanı yok/uygunsuz.\n"
+            f"Gelen anahtarlar: {list(j.keys()) if isinstance(j, dict) else 'unknown'}"
+        )
+        return
+
+    # 5) Fiyatları çek
     ga_a, ga_s = pick(data, "GA")
     c_a, c_s   = pick(data, "C")
     y_a, y_s   = pick(data, "Y")
     t_a, t_s   = pick(data, "T")
     o_a, o_s   = pick(data, "XAUUSD")
 
-    # 4) Mesaj formatı (senin istediğin gibi)
+    # 6) Mesaj formatla
     msg = "\n\n".join([
         f"📌 GoldPrice Bot (API)\n🕘 {ts} (TR)",
-        format_pair("🌍 ONS (XAUUSD)", o_a, o_s, "$"),
-        format_pair("💰 GRAM (GA)", ga_a, ga_s, "TL"),
-        format_pair("🪙 ÇEYREK (C)", c_a, c_s, "TL"),
-        format_pair("🪙 YARIM (Y)", y_a, y_s, "TL"),
-        format_pair("🪙 TAM (T)", t_a, t_s, "TL"),
+        fmt("🌍 ONS (XAUUSD)", o_a, o_s, "$"),
+        fmt("💰 GRAM (GA)", ga_a, ga_s, "TL"),
+        fmt("🪙 ÇEYREK (C)", c_a, c_s, "TL"),
+        fmt("🪙 YARIM (Y)", y_a, y_s, "TL"),
+        fmt("🪙 TAM (T)", t_a, t_s, "TL"),
     ])
 
-    # 5) Telegram'a gönder
+    # 7) Telegram'a gönder
     tg_send(msg)
 
 if __name__ == "_main_":
-    try:
-        main()
-    except Exception as e:
-        # Her türlü hatayı Telegram'a da bas
-        ts = now_tr_str()
-        tg_send(f"⚠️ GoldPrice Bot\n🕘 {ts} (TR)\nHata: {e}")
-        raise
+    main()
