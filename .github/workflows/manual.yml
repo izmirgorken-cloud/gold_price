@@ -1,8 +1,9 @@
 name: GoldPrice Hourly
+
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 5-15 * * *"  # 08:00-18:00 TR saat başı (UTC 05-15) [1](https://rapidapi.com/smokinyazilim/api/harem-altin-live-gold-price-data)[2](https://www.excelcozum.com/konu/siteden-veri-cekme-haremaltin-com.2277/)
+    - cron: "0 5-15 * * *"  # 08:00-18:00 TR saat başı (UTC 05-15)
 
 jobs:
   send-message:
@@ -25,4 +26,3 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python send_test.py
-``
