@@ -2,9 +2,7 @@ name: GoldPrice Hourly
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 5-15 * * *"  # 08:00-18:00 TR saat başı (UTC 05-15)
-
+  
 jobs:
   send-message:
     runs-on: ubuntu-latest
