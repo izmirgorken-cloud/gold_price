@@ -43,7 +43,11 @@ def main():
 
     # 1) API çağrısı
     try:
-        r = requests.get(GENELPARA_URL, timeout=20)
+        headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36",
+    "Accept": "application/json,text/plain,/",
+}
+r = requests.get(GENELPARA_URL, headers=headers, timeout=20)
     except Exception as e:
         tg_send(f"⚠️ GoldPrice Bot\n🕘 {ts} (TR)\nGenelPara'ya istek atılamadı: {e}")
         return
