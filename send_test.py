@@ -82,7 +82,7 @@ def main() -> None:
     # 5) Telegram'a gönder
     tg_send(msg)
 
-if _name_ == "_main_":
+if __name__ == "_main_":
     try:
         main()
     except Exception as e:
