@@ -90,4 +90,3 @@ if _name_ == "_main_":
         ts = now_tr_str()
         tg_send(f"⚠️ GoldPrice Bot\n🕘 {ts} (TR)\nHata: {e}")
         raise
-``
