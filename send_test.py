@@ -1,41 +1,42 @@
 import os
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
 
 TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
-def tg_send(text: str):
-    # Telegram Bot API sendMessage [1](https://anlikaltinfiyatlari.com/altin/harem-altin)
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    r = requests.post(url, json={"chat_id": CHAT_ID, "text": text}, timeout=20)
-    r.raise_for_status()
+# =========================
+# ŞİMDİLİK HARDCODE DEĞERLER
+# (RapidAPI gelince burası gerçek veriden dolacak)
+# =========================
+prices = {
+    "ONS":    {"alis": "5.110,20 $",  "satis": "5.114,60 $"},
+    "GRAM":   {"alis": "7.245,61 TL", "satis": "7.388,91 TL"},
+    "CEYREK": {"alis": "11.877 TL",   "satis": "12.048 TL"},
+    "YARIM":  {"alis": "23.739 TL",   "satis": "24.110 TL"},
+    "TAM":    {"alis": "47.333 TL",   "satis": "47.993 TL"},
+}
 
-def main():
-    # GitHub runner UTC; TR için +3
-    ts_tr = (datetime.utcnow() + timedelta(hours=3)).strftime("%d.%m.%Y %H:%M")
+now_tr = datetime.now().strftime("%d.%m.%Y %H:%M")
 
-    # ŞİMDİLİK FIX / HARDCODE DEĞERLER
-    prices = {
-        "ONS":    {"alis": "5.110,20 $",  "satis": "5.114,60 $"},
-        "GRAM":   {"alis": "7.245,61 ₺",  "satis": "7.388,91 ₺"},
-        "CEYREK": {"alis": "11.877 ₺",    "satis": "12.048 ₺"},
-        "YARIM":  {"alis": "23.739 ₺",    "satis": "24.110 ₺"},
-        "TAM":    {"alis": "47.333 ₺",    "satis": "47.993 ₺"},
-    }
+text = (
+    "📌 GoldPrice Bot (TEST)\n"
+    f"🕘 {now_tr} (TR)\n\n"
+    "🌍 ONS\n"
+    f"  Alış: {prices['ONS']['alis']} | Satış: {prices['ONS']['satis']}\n\n"
+    "💰 GRAM\n"
+    f"  Alış: {prices['GRAM']['alis']} | Satış: {prices['GRAM']['satis']}\n\n"
+    "🪙 ÇEYREK\n"
+    f"  Alış: {prices['CEYREK']['alis']} | Satış: {prices['CEYREK']['satis']}\n\n"
+    "🪙 YARIM\n"
+    f"  Alış: {prices['YARIM']['alis']} | Satış: {prices['YARIM']['satis']}\n\n"
+    "🪙 TAM\n"
+    f"  Alış: {prices['TAM']['alis']} | Satış: {prices['TAM']['satis']}\n\n"
+    "✅ Otomatik: GitHub Actions schedule ile gönderildi."
+)
 
-    msg = (
-        f"📌 GoldPrice Bot (FIX)\n"
-        f"🕗 {ts_tr} (TR)\n\n"
-        f"🌍 ONS\n  Alış: {prices['ONS']['alis']} | Satış: {prices['ONS']['satis']}\n\n"
-        f"💰 GRAM\n  Alış: {prices['GRAM']['alis']} | Satış: {prices['GRAM']['satis']}\n\n"
-        f"🪙 ÇEYREK\n  Alış: {prices['CEYREK']['alis']} | Satış: {prices['CEYREK']['satis']}\n\n"
-        f"🪙 YARIM\n  Alış: {prices['YARIM']['alis']} | Satış: {prices['YARIM']['satis']}\n\n"
-        f"🪙 TAM\n  Alış: {prices['TAM']['alis']} | Satış: {prices['TAM']['satis']}\n\n"
-        "✅ Sistem stabil. API entegrasyonunu sonra açacağız."
-    )
-
-    tg_send(msg)
-
-if _name_ == "_main_":
-    main()
+# Telegram Bot API - sendMessage [1](https://canlipiyasalar.romaaltin.com/)
+url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+resp = requests.post(url, json={"chat_id": CHAT_ID, "text": text}, timeout=20)
+resp.raise_for_status()
+print(resp.json())
