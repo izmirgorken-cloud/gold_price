@@ -2,13 +2,12 @@ name: GoldPrice Hourly
 
 on:
   workflow_dispatch:
-schedule:
-  - cron: "2-59/10 * * * *"
+  schedule:
+    - cron: "2-59/10 * * * *"
 
 jobs:
   send-message:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
