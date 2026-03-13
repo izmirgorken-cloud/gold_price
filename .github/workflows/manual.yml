@@ -2,7 +2,9 @@ name: GoldPrice Hourly
 
 on:
   workflow_dispatch:
-  
+  schedule:
+    - cron: "*/10 * * * *"
+
 jobs:
   send-message:
     runs-on: ubuntu-latest
