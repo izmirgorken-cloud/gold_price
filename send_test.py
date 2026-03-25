@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 # Örn: https://www.goldapi.io/api/XAU/USD/20230617 ve header'da x-access-token ile key gönderimi örneklenmiş. [1](https://www.goldapi.io/)
 GOLDAPI_URL = "https://www.goldapi.io/api/XAU/TRY"
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 GOLDAPI_KEY = os.getenv("GOLDAPI_KEY")
 
@@ -31,7 +31,7 @@ def fetch_gold():
 
 
 def send_telegram(text: str):
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
         "text": text,
@@ -43,8 +43,8 @@ def send_telegram(text: str):
 
 
 def main():
-    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID or not GOLDAPI_KEY:
-        raise RuntimeError("Eksik env var: TELEGRAM_TOKEN / TELEGRAM_CHAT_ID / GOLDAPI_KEY")
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID or not GOLDAPI_KEY:
+        raise RuntimeError("Eksik env var: TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID / GOLDAPI_KEY")
 
     r = fetch_gold()
 
