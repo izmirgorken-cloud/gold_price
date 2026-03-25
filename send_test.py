@@ -1,97 +1,107 @@
 import os
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 
-TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+# GoldAPI endpoint formatı: https://www.goldapi.io/api/{METAL}/{CURRENCY}
+# Örn: https://www.goldapi.io/api/XAU/USD/20230617 ve header'da x-access-token ile key gönderimi örneklenmiş. [1](https://www.goldapi.io/)
+GOLDAPI_URL = "https://www.goldapi.io/api/XAU/TRY"
 
-GENELPARA_URL = "https://api.genelpara.com/json/?list=altin&sembol=GA,C,Y,T,XAUUSD"
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+GOLDAPI_KEY = os.getenv("GOLDAPI_KEY")
 
-def now_tr():
-    return (datetime.utcnow() + timedelta(hours=3)).strftime("%d.%m.%Y %H:%M")
 
-def tg_send(text: str):
-    # Telegram Bot API sendMessage [1](https://github.com/TelegramBots/Telegram.Bot)
-    if not TOKEN or not CHAT_ID:
-        print("ERROR: Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID")
-        print(text)
-        return
+def tr_now_str():
+    tr_tz = timezone(timedelta(hours=3))  # TR = UTC+3
+    return datetime.now(tr_tz).strftime("%d.%m.%Y %H:%M")
 
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    r = requests.post(url, json={"chat_id": CHAT_ID, "text": text}, timeout=20)
-    if r.status_code >= 400:
-        print("Telegram HTTP", r.status_code, r.text)
-    r.raise_for_status()
 
-def pick(data: dict, sym: str):
-    item = data.get(sym, {}) if isinstance(data, dict) else {}
-    return item.get("alis"), item.get("satis")
-
-def fmt(title: str, alis, satis, unit: str):
-    a = alis if alis else "-"
-    s = satis if satis else "-"
-    return f"{title}\n  Alış: {a} {unit} | Satış: {s} {unit}"
-
-def main():
-    ts = now_tr()
-
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36",
-        "Accept": "application/json,text/plain,/",
+def goldapi_headers():
+    # GoldAPI auth: header 'x-access-token: YOUR_API_KEY' [1](https://www.goldapi.io/)
+    return {
+        "x-access-token": GOLDAPI_KEY,
+        "User-Agent": "GoldPriceBot/1.0 (GitHub Actions)",
+        "Accept": "application/json",
     }
 
-    try:
-        r = requests.get(GENELPARA_URL, headers=headers, timeout=20)
-    except Exception as e:
-        tg_send(f"⚠️ GoldPrice Bot\n🕘 {ts} (TR)\nGenelPara'ya istek atılamadı: {e}")
-        return
+
+def fetch_gold():
+    r = requests.get(GOLDAPI_URL, headers=goldapi_headers(), timeout=20)
+    return r
+
+
+def send_telegram(text: str):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    }
+    rt = requests.post(url, data=payload, timeout=20)
+    rt.raise_for_status()
+
+
+def main():
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID or not GOLDAPI_KEY:
+        raise RuntimeError("Eksik env var: TELEGRAM_TOKEN / TELEGRAM_CHAT_ID / GOLDAPI_KEY")
+
+    r = fetch_gold()
 
     if r.status_code != 200:
-        preview = (r.text or "")[:300]
-        tg_send(
-            f"⚠️ GoldPrice Bot\n🕘 {ts} (TR)\n"
-            f"GenelPara HTTP {r.status_code}\n"
-            f"İlk 300 karakter:\n{preview}"
+        preview = (r.text or "")[:300].replace("<", "&lt;").replace(">", "&gt;")
+        msg = (
+            f"⚠️ <b>GoldPrice Bot</b>\n"
+            f"🕰 {tr_now_str()} (TR)\n"
+            f"GoldAPI HTTP <b>{r.status_code}</b>\n"
+            f"<b>İlk 300 karakter:</b>\n<code>{preview}</code>"
         )
+        send_telegram(msg)
         return
 
-    try:
-        j = r.json()
-    except Exception as e:
-        preview = (r.text or "")[:300]
-        tg_send(
-            f"⚠️ GoldPrice Bot\n🕘 {ts} (TR)\n"
-            f"JSON parse hatası: {e}\n"
-            f"İlk 300 karakter:\n{preview}"
-        )
-        return
+    data = r.json()
 
-    # GenelPara formatı: j['data'] altında semboller (GA, C, Y, T, XAUUSD) [2](https://github.com/Mehmet020202/Hasalt-napi2026)[3](https://altin.in/)
-    data = j.get("data")
-    if not isinstance(data, dict):
-        tg_send(
-            f"⚠️ GoldPrice Bot\n🕘 {ts} (TR)\n"
-            f"Beklenen 'data' alanı yok/uygunsuz.\n"
-            f"Gelen anahtarlar: {list(j.keys()) if isinstance(j, dict) else 'unknown'}"
-        )
-        return
+    # GoldAPI örnek response alanları: timestamp, metal, currency, ask, bid, price, ch, chp, vb. [1](https://www.goldapi.io/)
+    price = data.get("price")
+    ask = data.get("ask")
+    bid = data.get("bid")
+    ch = data.get("ch")
+    chp = data.get("chp")
 
-    ga_a, ga_s = pick(data, "GA")
-    c_a, c_s   = pick(data, "C")
-    y_a, y_s   = pick(data, "Y")
-    t_a, t_s   = pick(data, "T")
-    o_a, o_s   = pick(data, "XAUUSD")
+    # Eğer dönerse opsiyonel gram/karat alanlarını da ekleyebiliriz.
+    # Örnek response'ta price_gram_22K gibi alanlar gösteriliyor. [1](https://www.goldapi.io/)
+    gram_24k = data.get("price_gram_24K")
+    gram_22k = data.get("price_gram_22K")
 
-    msg = "\n\n".join([
-        f"📌 GoldPrice Bot (API)\n🕘 {ts} (TR)",
-        fmt("🌍 ONS (XAUUSD)", o_a, o_s, "$"),
-        fmt("💰 GRAM (GA)", ga_a, ga_s, "TL"),
-        fmt("🪙 ÇEYREK (C)", c_a, c_s, "TL"),
-        fmt("🪙 YARIM (Y)", y_a, y_s, "TL"),
-        fmt("🪙 TAM (T)", t_a, t_s, "TL"),
-    ])
+    lines = [
+        "✅ <b>GoldPrice Bot</b>",
+        f"🕰 {tr_now_str()} (TR)",
+        "💰 <b>XAU/TRY</b>",
+        f"Price: <b>{price}</b>",
+        f"Ask (Satış): <b>{ask}</b> | Bid (Alış): <b>{bid}</b>",
+        f"Δ: <b>{ch}</b> ({chp}%)",
+    ]
 
-    tg_send(msg)
+    # Opsiyonel alanlar varsa ekle
+    if gram_24k is not None:
+        lines.append(f"Gram 24K: <b>{gram_24k}</b>")
+    if gram_22k is not None:
+        lines.append(f"Gram 22K: <b>{gram_22k}</b>")
+
+    send_telegram("\n".join(lines))
+
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        # Son çare: hata bilgisini telegrama da basmaya çalış
+        try:
+            send_telegram(
+                f"❌ <b>GoldPrice Bot Error</b>\n"
+                f"🕰 {tr_now_str()} (TR)\n"
+                f"<code>{str(e)[:350]}</code>"
+            )
+        except Exception:
+            pass
+        raise
