@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 # Örn: https://www.goldapi.io/api/XAU/USD/20230617 ve header'da x-access-token ile key gönderimi örneklenmiş. [1](https://www.goldapi.io/)
 GOLDAPI_URL = "https://www.goldapi.io/api/XAU/TRY"
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 GOLDAPI_KEY = os.getenv("GOLDAPI_KEY")
 
